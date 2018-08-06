@@ -6,6 +6,7 @@ var util = require ("util");
 
 var serviceWrap;
 var runInitialised = false;
+var runWin32IntervalId = null;
 
 var linuxStartStopScript = [
 	'#!/bin/bash',
@@ -433,7 +434,7 @@ function remove (name, cb) {
 function run (stopCallback) {
 	if (! runInitialised) {
 		if (os.platform() == "win32") {
-			setInterval (function () {
+			runWin32IntervalId = setInterval (function () {
 				if (isStopRequested ()) {
 					stopCallback ();
 				}
@@ -463,7 +464,21 @@ function stop (rcode) {
 	process.exit (rcode || 0);
 }
 
+function stop_gracefully (rcode) {
+  if (!runInitialised) {
+    throw new Error("nothing is running!");
+  }
+  if (os.platform() == "win32") {
+    getServiceWrap ().stop (rcode);
+    if (runWin32IntervalId != null) {
+      clearInterval(runWin32IntervalId);
+    }
+  }
+  runInitialised = false;
+}
+
 exports.add = add;
 exports.remove = remove;
 exports.run = run;
 exports.stop = stop;
+exports.stop_gracefully = stop_gracefully;
